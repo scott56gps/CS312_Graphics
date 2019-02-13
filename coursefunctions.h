@@ -465,6 +465,34 @@ void TestVertexShader(Buffer2D<PIXEL> & target)
         DrawPrimitive(TRIANGLE, target, colorTriangle, colorAttributes, &colorUniforms, &myColorFragShader, &myColorVertexShader);	
 }
 
+void TestDrawShip(Buffer2D<PIXEL> & target)
+{
+        /**************************************************
+        * 1. Interpolated color triangle
+        *************************************************/
+        Vertex colorTriangle[3];
+        Attributes colorAttributes[3];
+        colorTriangle[0] = (Vertex){350, 112, 1, 1};
+        colorTriangle[1] = (Vertex){400, 200, 1, 1};
+        colorTriangle[2] = (Vertex){300, 200, 1, 1};
+
+        colorAttributes[0].values[0] = 1.0;
+        colorAttributes[0].values[1] = 0.0;
+        colorAttributes[0].values[2] = 0.0;
+        colorAttributes[1].values[0] = 0.0;
+        colorAttributes[1].values[1] = 1.0;
+        colorAttributes[1].values[2] = 0.0;
+        colorAttributes[2].values[0] = 0.0;
+        colorAttributes[2].values[1] = 0.0;
+        colorAttributes[2].values[2] = 1.0;
+
+        FragmentShader myColorFragShader(GradientFragShader);
+
+        Attributes colorUniforms;
+
+        DrawPrimitive(TRIANGLE, target, colorTriangle, colorAttributes, &colorUniforms, &myColorFragShader);
+}
+
 /********************************************
  * Verify that the whole pipeline works. By
  * the end of week 07 you should be able to
