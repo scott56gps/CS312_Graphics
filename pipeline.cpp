@@ -50,6 +50,57 @@ void processUserInputs(bool & running)
         {
             running = false;
         }
+        
+        // Add Mouse Support
+        if (e.type == SDL_MOUSEMOTION)
+        {
+            int cursor = SDL_ShowCursor(SDL_QUERY);
+
+            if (cursor == SDL_DISABLE)
+            {
+                double mouseX = e.motion.xrel;
+                double mouseY = e.motion.yrel;
+
+                myCamera.yaw -= mouseX * 0.02;
+                myCamera.pitch += mouseY * 0.02;
+            }
+        }
+        if (e.type == SDL_MOUSEBUTTONDOWN)
+        {
+            int cursor = SDL_ShowCursor(SDL_QUERY);
+
+            if (cursor == SDL_DISABLE)
+            {
+                SDL_ShowCursor(SDL_ENABLE);
+                SDL_SetRelativeMouseMode(SDL_FALSE);
+            } else
+            {
+                SDL_ShowCursor(SDL_DISABLE);
+                SDL_SetRelativeMouseMode(SDL_TRUE);
+            }
+        }
+
+        // Translation
+        if (e.key.keysym.sym == 'w' && e.type == SDL_KEYDOWN)
+        {
+            myCamera.z += (cos((myCamera.yaw / 180) * M_PI)) * 0.05;
+            myCamera.x -= (sin((myCamera.yaw / 180) * M_PI)) * 0.05;
+        }
+        if (e.key.keysym.sym == 's' && e.type == SDL_KEYDOWN)
+        {
+            myCamera.z -= (cos((myCamera.yaw / 180) * M_PI)) * 0.05;
+            myCamera.x += (sin((myCamera.yaw / 180) * M_PI)) * 0.05;
+        }
+        if (e.key.keysym.sym == 'a' && e.type == SDL_KEYDOWN)
+        {
+            myCamera.x -= (cos((myCamera.yaw / 180) * M_PI)) * 0.05;
+            myCamera.z -= (sin((myCamera.yaw / 180) * M_PI)) * 0.05;
+        }
+        if (e.key.keysym.sym == 'd' && e.type == SDL_KEYDOWN)
+        {
+            myCamera.x += (cos((myCamera.yaw / 180) * M_PI)) * 0.05;
+            myCamera.z += (sin((myCamera.yaw / 180) * M_PI)) * 0.05;
+        }
     }
 }
 

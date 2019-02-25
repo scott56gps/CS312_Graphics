@@ -51,6 +51,18 @@ struct Vertex
     double w;
 };
 
+struct CameraControl
+{
+    double x = 0;
+    double y = 0;
+    double z = 0;
+    double pitch = 0;
+    double yaw = 0;
+    double roll = 0;
+};
+
+CameraControl myCamera;
+
 /****************************************************
  * BOUNDING_BOX
  * Describes a box within which objects may be drawn. 
@@ -99,10 +111,11 @@ class MatrixTransform
             identity();
         }
     
-        void translate(double x, double y)
+        void translate(double x, double y, double z)
         {
             this->matrix[0][3] += x;
             this->matrix[1][3] += y;
+            this->matrix[2][3] += z;
 
             // double translateMatrix[4][4] = {{1,0,0,x}, {0,1,0,y}, {0,0,1,0}, {0,0,0,1}};
             // multiplyMatrices(this->matrix, translateMatrix);

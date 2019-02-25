@@ -481,6 +481,39 @@ void TestVertexShader(Buffer2D<PIXEL> & target)
         DrawPrimitive(TRIANGLE, target, colorTriangle, colorAttributes, &colorUniforms, &myColorFragShader, &myColorVertexShader);	
 }
 
+/*******************************
+ * TRANSFORMS FUNCTIONS
+ * ****************************/
+
+MatrixTransform camera4x4(const double &offX, const double &offY, const double &offZ,
+                        const double &yaw, const double &pitch, const double &roll)
+{
+        MatrixTransform cameraTransform = MatrixTransform();
+
+        cameraTransform.translate(-offX, -offY, -offZ);
+
+        cameraTransform.rotate(pitch, 0);
+        cameraTransform.rotate(0, yaw);
+
+        return cameraTransform;
+}
+
+MatrixTransform perspective4x4(const double &fovYDegrees, const double &aspectRatio,
+                               const double &nearPlane, const double &farPlane)
+{
+        MatrixTransform transform = MatrixTransform();
+
+        double top = nearPlane * tan((fovYDegrees * M_PI) / 180.0) / 2.0;
+        double right = aspectRatio * top;
+
+        // transform[0][0] = nearPlane / right;
+        // transform[0][1] = 0;
+        // transform[0][2] = 0;
+        // transform[0][3] = 0;
+
+        // transform
+}
+
 /********************************************
  * Verify that the whole pipeline works. By
  * the end of week 07 you should be able to
@@ -527,19 +560,47 @@ void TestPipeline(Buffer2D<PIXEL> & target)
         verticesImgB[1] = quad[3];
         verticesImgB[2] = quad[0];
 
+        // These are UV Coordinates.  UV Coordinates are those used to map an image
         double coordinates[4][2] = { {0,0}, {1,0}, {1,1}, {0,1} };
         // Your texture coordinate code goes here for 'imageAttributesA, imageAttributesB'
+        imageAttributesA[0].values[0] = coordinates[0][0];
+        imageAttributesA[0].values[1] = coordinates[0][1];
+        imageAttributesA[1].values[0] = coordinates[1][0];
+        imageAttributesA[1].values[1] = coordinates[1][1];
+        imageAttributesA[2].values[0] = coordinates[2][0];
+        imageAttributesA[2].values[1] = coordinates[2][1];
+
+        imageAttributesB[0].values[0] = coordinates[2][0];
+        imageAttributesB[0].values[1] = coordinates[2][1];
+        imageAttributesB[1].values[0] = coordinates[1][0];
+        imageAttributesB[1].values[1] = coordinates[1][1];
+        imageAttributesB[2].values[0] = coordinates[3][0];
+        imageAttributesB[2].values[1] = coordinates[3][1];
 
         BufferImage myImage("checker.bmp");
         // Ensure the checkboard image is in this directory, you can use another image though
 
-        Attributes imageUniforms;
+        Attributes imageUniforms[2];
         // Your code for the uniform goes here
+
+        // Uniforms
+        // [0] -> Image reference
+        // [1] -> Model transform
+        // [2] -> View transform
+
+        MatrixTransform model = MatrixTransform(); // Initialized to Identity Matrix
+        MatrixTransform view = camera4x4(myCamera.x, myCamera.y, myCamera.z, myCamera.yaw, myCamera.pitch, myCamera.roll);
+
+        imageUniforms[0].ptrImg = (void*)&myImage;
+        imageUniforms[0].transform = model;
+
 
         FragmentShader fragImg;
         // Your code for the image fragment shader goes here
+        fragImg.setShader(ImageFragShader);
 
         VertexShader vertImg;
+        vertImg.setShader(TestVertShader);
         // Your code for the image vertex shader goes here
         // NOTE: This must include the at least the 
         // projection matrix if not more transformations 
