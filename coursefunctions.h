@@ -450,7 +450,7 @@ void TestVertexShader(Buffer2D<PIXEL> & target)
          * TRANSLATE (move +100 in the X direction, +50 in the Y direction)
          *****************************************************************/
         // Your translating code that integrates with 'colorUniforms', used by 'myColorVertexShader' goes here
-        colorUniforms.transform.translate(100.0, 50.0);
+        colorUniforms.transform.translate(100.0, 50.0, 0.0);
         DrawPrimitive(TRIANGLE, target, colorTriangle, colorAttributes, &colorUniforms, &myColorFragShader, &myColorVertexShader);
 
         /***********************************
@@ -477,7 +477,7 @@ void TestVertexShader(Buffer2D<PIXEL> & target)
         colorUniforms.transform.identity();
         colorUniforms.transform.scale(0.5, 0.5);
         colorUniforms.transform.rotate(45.0, 45.0);
-        colorUniforms.transform.translate(100.0, 50.0);
+        colorUniforms.transform.translate(100.0, 50.0, 0.0);
         DrawPrimitive(TRIANGLE, target, colorTriangle, colorAttributes, &colorUniforms, &myColorFragShader, &myColorVertexShader);	
 }
 
