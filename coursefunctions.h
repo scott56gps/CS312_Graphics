@@ -506,12 +506,27 @@ MatrixTransform perspective4x4(const double &fovYDegrees, const double &aspectRa
         double top = nearPlane * tan((fovYDegrees * M_PI) / 180.0) / 2.0;
         double right = aspectRatio * top;
 
-        // transform[0][0] = nearPlane / right;
-        // transform[0][1] = 0;
-        // transform[0][2] = 0;
-        // transform[0][3] = 0;
+        transform[0][0] = nearPlane / right;
+        transform[0][2] = 0;
+        transform[0][1] = 0;
+        transform[0][3] = 0;
 
-        // transform
+        transform[1][0] = 0;
+        transform[1][1] = nearPlane / top;
+        transform[1][2] = 0;
+        transform[1][3] = 0;
+
+        transform[2][0] = 0;
+        transform[2][1] = 0;
+        transform[2][2] = (farPlane + nearPlane) / (farPlane - nearPlane);
+        transform[2][3] = (-2 * farPlane * nearPlane) / (farPlane - nearPlane);
+
+        transform[3][0] = 0;
+        transform[3][1] = 0;
+        transform[3][2] = 1;
+        transform[3][3] = 0;
+
+        return transform;
 }
 
 /********************************************
@@ -563,24 +578,30 @@ void TestPipeline(Buffer2D<PIXEL> & target)
         // These are UV Coordinates.  UV Coordinates are those used to map an image
         double coordinates[4][2] = { {0,0}, {1,0}, {1,1}, {0,1} };
         // Your texture coordinate code goes here for 'imageAttributesA, imageAttributesB'
-        imageAttributesA[0].values[0] = coordinates[0][0];
-        imageAttributesA[0].values[1] = coordinates[0][1];
-        imageAttributesA[1].values[0] = coordinates[1][0];
-        imageAttributesA[1].values[1] = coordinates[1][1];
-        imageAttributesA[2].values[0] = coordinates[2][0];
-        imageAttributesA[2].values[1] = coordinates[2][1];
+        imageAttributesA[0].numValues = 2;
+        imageAttributesA[1].numValues = 2;
+        imageAttributesA[2].numValues = 2;
+        imageAttributesA[0].values.push_back(coordinates[0][0]);
+        imageAttributesA[0].values.push_back(coordinates[0][1]);
+        imageAttributesA[1].values.push_back(coordinates[1][0]);
+        imageAttributesA[1].values.push_back(coordinates[1][1]);
+        imageAttributesA[2].values.push_back(coordinates[2][0]);
+        imageAttributesA[2].values.push_back(coordinates[2][1]);
 
-        imageAttributesB[0].values[0] = coordinates[2][0];
-        imageAttributesB[0].values[1] = coordinates[2][1];
-        imageAttributesB[1].values[0] = coordinates[1][0];
-        imageAttributesB[1].values[1] = coordinates[1][1];
-        imageAttributesB[2].values[0] = coordinates[3][0];
-        imageAttributesB[2].values[1] = coordinates[3][1];
+        imageAttributesB[0].numValues = 2;
+        imageAttributesB[1].numValues = 2;
+        imageAttributesB[2].numValues = 2;
+        imageAttributesB[0].values.push_back(coordinates[2][0]);
+        imageAttributesB[0].values.push_back(coordinates[2][1]);
+        imageAttributesB[1].values.push_back(coordinates[1][0]);
+        imageAttributesB[1].values.push_back(coordinates[1][1]);
+        imageAttributesB[2].values.push_back(coordinates[3][0]);
+        imageAttributesB[2].values.push_back(coordinates[3][1]);
 
         BufferImage myImage("checker.bmp");
         // Ensure the checkboard image is in this directory, you can use another image though
 
-        Attributes imageUniforms[2];
+        Attributes imageUniforms;
         // Your code for the uniform goes here
 
         // Uniforms
@@ -590,10 +611,16 @@ void TestPipeline(Buffer2D<PIXEL> & target)
 
         MatrixTransform model = MatrixTransform(); // Initialized to Identity Matrix
         MatrixTransform view = camera4x4(myCamera.x, myCamera.y, myCamera.z, myCamera.yaw, myCamera.pitch, myCamera.roll);
+        MatrixTransform projection = perspective4x4(60.0, 1, 1, 200); // FOV, Aspect Ratio, Near, Far
+        MatrixTransform fullTransform = MatrixTransform();
 
-        imageUniforms[0].ptrImg = (void*)&myImage;
-        imageUniforms[0].transform = model;
+        imageUniforms.ptrImg = (void*)&myImage;
 
+        // Multiply the model, view and projection matrices together
+        fullTransform.multiplyMatrices(fullTransform.matrix, projection.matrix);
+        fullTransform.multiplyMatrices(fullTransform.matrix, view.matrix);
+        fullTransform.multiplyMatrices(fullTransform.matrix, model.matrix);
+        imageUniforms.transform = fullTransform;
 
         FragmentShader fragImg;
         // Your code for the image fragment shader goes here

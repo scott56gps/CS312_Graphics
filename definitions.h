@@ -219,6 +219,11 @@ class MatrixTransform
             }
         }
 
+        double* operator [] (int i)
+        {
+            return (double*) matrix[i];
+        }
+
         MatrixTransform operator * (double vector[4][1])
         {
             // Copy the vector over so this function can be const
@@ -416,7 +421,11 @@ class Attributes
         // Needed by clipping (linearly interpolated Attributes between two others)
         Attributes(const Attributes & first, const Attributes & second, const double & valueBetween)
         {
-            // Your code goes here when clipping is implemented
+            numValues = first.numValues;
+            for (int i = 0; i < numValues; i++)
+            {
+                values.push_back(first.values[i] + ((second.values[i] - first.values[i]) *  valueBetween));
+            }
         }
 
         // A single pixel that holds a single combination of RGB
@@ -426,7 +435,10 @@ class Attributes
         void* ptrImg;
 
         // An array that holds attribute values, such as RGB values or UV Coordinates
-        double values[5];
+        // double values[5];
+        vector<double> values;
+
+        int numValues;
 
         // A Matrix Transform that can be used to transform a vertex
         MatrixTransform transform;
