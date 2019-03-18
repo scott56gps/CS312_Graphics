@@ -291,12 +291,36 @@ void GradientFragShader(PIXEL & fragment, const Attributes & vertAttr, const Att
 }
 
 void ImageFragShader(PIXEL & fragment, const Attributes & vertAttr, const Attributes & uniforms) {
+//     BufferImage* ptr = (BufferImage*)uniforms.ptrImg;
     BufferImage* ptr = (BufferImage*)uniforms.ptrImg;
 
     int x = vertAttr.values[0] * (ptr->width() - 1);
     int y = vertAttr.values[1] * (ptr->height() - 1);
 
     fragment = (*ptr)[y][x];
+}
+
+// Frag Shader for UV without image (due to SDL2 bug?)
+void FragShaderUVwithoutImage(PIXEL & fragment, const Attributes & attributes, const Attributes & uniform)
+{
+    // Figure out which X/Y square our UV would fall on
+    int xSquare = attributes.values[0] * 8;
+    int ySquare = attributes.values[1] * 8;
+
+	// Is the X square position even? The Y? 
+    bool evenXSquare = (xSquare % 2) == 0;
+    bool evenYSquare = (ySquare % 2) == 0;
+
+    // Both even or both odd - red square
+    if( (evenXSquare && evenYSquare) || (!evenXSquare && !evenYSquare) )
+    {
+        fragment = 0xffff0000;
+    }
+    // One even, one odd - white square
+    else
+    {
+        fragment = 0xffffffff;
+    }
 }
 
 /***********************************************
@@ -458,7 +482,9 @@ void TestVertexShader(Buffer2D<PIXEL> & target)
          ***********************************/
         // Your scaling code that integrates with 'colorUniforms', used by 'myColorVertexShader' goes here
         colorUniforms.transform.identity();
-        colorUniforms.transform.scale(0.5, 0.5);
+        MatrixTransform scaledMatrix = colorUniforms.transform.scale(0.5, 0.5);
+
+        colorUniforms.transform = scaledMatrix * colorUniforms.transform;
         DrawPrimitive(TRIANGLE, target, colorTriangle, colorAttributes, &colorUniforms, &myColorFragShader, &myColorVertexShader);
 
         /**********************************************
@@ -466,7 +492,7 @@ void TestVertexShader(Buffer2D<PIXEL> & target)
          *********************************************/
         // Your rotation code that integrates with 'colorUniforms', used by 'myColorVertexShader' goes here
         colorUniforms.transform.identity();
-        colorUniforms.transform.rotate(45.0, 45.0);
+        colorUniforms.transform.rotate('Z', 45.0);
         DrawPrimitive(TRIANGLE, target, colorTriangle, colorAttributes, &colorUniforms, &myColorFragShader, &myColorVertexShader);
 
         /*************************************************
@@ -475,9 +501,12 @@ void TestVertexShader(Buffer2D<PIXEL> & target)
          ************************************************/
         // Your scale-translate-rotation code that integrates with 'colorUniforms', used by 'myColorVertexShader' goes here
         colorUniforms.transform.identity();
-        colorUniforms.transform.scale(0.5, 0.5);
-        colorUniforms.transform.rotate(45.0, 45.0);
+        scaledMatrix = colorUniforms.transform.scale(0.5, 0.5);
+        MatrixTransform rotatedMatrix = colorUniforms.transform.rotate('Z', 45.0);
+
+        colorUniforms.transform = scaledMatrix * rotatedMatrix;
         colorUniforms.transform.translate(100.0, 50.0, 0.0);
+
         DrawPrimitive(TRIANGLE, target, colorTriangle, colorAttributes, &colorUniforms, &myColorFragShader, &myColorVertexShader);	
 }
 
@@ -490,10 +519,12 @@ MatrixTransform camera4x4(const double &offX, const double &offY, const double &
 {
         MatrixTransform cameraTransform = MatrixTransform();
 
-        cameraTransform.translate(-offX, -offY, -offZ);
+        MatrixTransform trans = cameraTransform.translate(-offX, -offY, -offZ);
+        MatrixTransform rotX = cameraTransform.rotate('X', -pitch);
+        MatrixTransform rotY = cameraTransform.rotate('Y', -yaw);
 
-        cameraTransform.rotate(pitch, 0);
-        cameraTransform.rotate(0, yaw);
+        // Multiply the rotX and rotY together with the translation
+        cameraTransform = rotX * rotY * trans;
 
         return cameraTransform;
 }
@@ -503,7 +534,7 @@ MatrixTransform perspective4x4(const double &fovYDegrees, const double &aspectRa
 {
         MatrixTransform transform = MatrixTransform();
 
-        double top = nearPlane * tan((fovYDegrees * M_PI) / 180.0) / 2.0;
+        double top = nearPlane * tan((fovYDegrees * M_PI) / 180.0 / 2.0);
         double right = aspectRatio * top;
 
         transform[0][0] = nearPlane / right;
@@ -593,10 +624,10 @@ void TestPipeline(Buffer2D<PIXEL> & target)
         imageAttributesB[2].numValues = 2;
         imageAttributesB[0].values.push_back(coordinates[2][0]);
         imageAttributesB[0].values.push_back(coordinates[2][1]);
-        imageAttributesB[1].values.push_back(coordinates[1][0]);
-        imageAttributesB[1].values.push_back(coordinates[1][1]);
-        imageAttributesB[2].values.push_back(coordinates[3][0]);
-        imageAttributesB[2].values.push_back(coordinates[3][1]);
+        imageAttributesB[1].values.push_back(coordinates[3][0]);
+        imageAttributesB[1].values.push_back(coordinates[3][1]);
+        imageAttributesB[2].values.push_back(coordinates[0][0]);
+        imageAttributesB[2].values.push_back(coordinates[0][1]);
 
         BufferImage myImage("checker.bmp");
         // Ensure the checkboard image is in this directory, you can use another image though
@@ -612,19 +643,19 @@ void TestPipeline(Buffer2D<PIXEL> & target)
         MatrixTransform model = MatrixTransform(); // Initialized to Identity Matrix
         MatrixTransform view = camera4x4(myCamera.x, myCamera.y, myCamera.z, myCamera.yaw, myCamera.pitch, myCamera.roll);
         MatrixTransform projection = perspective4x4(60.0, 1, 1, 200); // FOV, Aspect Ratio, Near, Far
-        MatrixTransform fullTransform = MatrixTransform();
 
+        // imageUniforms.ptrImg = (void*)&myImage;
         imageUniforms.ptrImg = (void*)&myImage;
 
         // Multiply the model, view and projection matrices together
-        fullTransform.multiplyMatrices(fullTransform.matrix, projection.matrix);
-        fullTransform.multiplyMatrices(fullTransform.matrix, view.matrix);
-        fullTransform.multiplyMatrices(fullTransform.matrix, model.matrix);
-        imageUniforms.transform = fullTransform;
+        // fullTransform.multiplyMatrices(fullTransform.matrix, projection.matrix);
+        // fullTransform.multiplyMatrices(fullTransform.matrix, view.matrix);
+        // fullTransform.multiplyMatrices(fullTransform.matrix, model.matrix);
+        imageUniforms.transform = projection * view * model;
 
         FragmentShader fragImg;
         // Your code for the image fragment shader goes here
-        fragImg.setShader(ImageFragShader);
+        fragImg.setShader(FragShaderUVwithoutImage);
 
         VertexShader vertImg;
         vertImg.setShader(TestVertShader);

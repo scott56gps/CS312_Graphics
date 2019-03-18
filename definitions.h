@@ -93,9 +93,6 @@ class MatrixTransform
     public:
         // This is the matrix that will be manipulated into a transform
         double matrix[4][4];
-
-        // To make operator overloading happy
-        double vector[4][1];
         
         // Default Constructor
         MatrixTransform() {
@@ -103,50 +100,65 @@ class MatrixTransform
             identity();
         }
 
-        MatrixTransform(double vect[4][1]) {
-            for (int i = 0; i < 4; i++)
-            {
-                this->vector[i][0] = vect[i][0];
-            }
-            identity();
+        MatrixTransform(const Vertex & vert)
+        {
+            this->matrix[0][0] = vert.x;
+            this->matrix[1][0] = vert.y;
+            this->matrix[2][0] = vert.z;
+            this->matrix[3][0] = vert.w;
         }
     
-        void translate(double x, double y, double z)
+        MatrixTransform translate(double x, double y, double z)
         {
-            this->matrix[0][3] += x;
-            this->matrix[1][3] += y;
-            this->matrix[2][3] += z;
+            MatrixTransform transformedMatrix = MatrixTransform();
+            transformedMatrix.matrix[0][3] += x;
+            transformedMatrix.matrix[1][3] += y;
+            transformedMatrix.matrix[2][3] += z;
 
-            // double translateMatrix[4][4] = {{1,0,0,x}, {0,1,0,y}, {0,0,1,0}, {0,0,0,1}};
-            // multiplyMatrices(this->matrix, translateMatrix);
+            return transformedMatrix;
         }
 
-        void scale(double scaleFactorX, double scaleFactorY)
+        MatrixTransform scale(double scaleFactorX, double scaleFactorY)
         {
-            double scaleMatrix[4][4] = {{scaleFactorX,0,0,0},{0,scaleFactorY,0,0},{0,0,1,0},{0,0,0,1}};
-            // this->multiply(this->vector, transformationMatrix);
-            multiplyMatrices(this->matrix, scaleMatrix);
-            // this->matrix[0][0] *= scaleFactorX;
-            // this->matrix[1][1] *= scaleFactorY;
+            MatrixTransform scaledMatrix = MatrixTransform();
+            scaledMatrix[0][0] = scaleFactorX;
+            scaledMatrix[1][1] = scaleFactorY;
+            
+            return scaledMatrix;
         }
 
-        void rotate(double rotateFactorX, double rotateFactorY)
+        MatrixTransform rotate(char dim, double rotateFactor)
         {
-            rotateFactorX = rotateFactorX * M_PI / 180.0;
-            rotateFactorY = rotateFactorY * M_PI / 180.0;
+            // This transform shall be the rotated matrix
+            MatrixTransform rotatedMatrix = MatrixTransform();
 
-            double cosX = cos(rotateFactorX);
-            double cosY = cos(rotateFactorY);
-            double sineX = sin(rotateFactorX);
-            double sineY = sin(rotateFactorY);
+            double radians = rotateFactor * M_PI / 180.0;
+            double cosT = cos(radians);
+            double sinT = sin(radians);
 
-            double rotateMatrix[4][4] = {{cosX,-sineX,0,0},{sineY,cosY,0,0},{0,0,1,0},{0,0,0,1}};
-            // this->multiply(this->vector, transformationMatrix);
-            multiplyMatrices(this->matrix, rotateMatrix);
-            // this->matrix[0][0] *= cos((rotateFactorX * M_PI) / 180);
-            // this->matrix[0][1] *= -sin((rotateFactorX * M_PI) / 180);
-            // this->matrix[1][0] *= sin((rotateFactorY * M_PI) / 180);
-            // this->matrix[1][1] *= cos((rotateFactorY * M_PI) / 180);
+            switch(dim)
+            {
+            case 'X':
+                rotatedMatrix[1][1] = cosT;
+                rotatedMatrix[1][2] = -sinT;
+                rotatedMatrix[2][1] = sinT;
+                rotatedMatrix[2][2] = cosT;
+                break;
+            case 'Y':
+                rotatedMatrix[0][0] = cosT;
+                rotatedMatrix[0][2] = sinT;
+                rotatedMatrix[2][0] = -sinT;
+                rotatedMatrix[2][2] = cosT;
+                break;
+            case 'Z':
+                rotatedMatrix[0][0] = cosT;
+                rotatedMatrix[0][1] = -sinT;
+                rotatedMatrix[1][0] = sinT;
+                rotatedMatrix[1][1] = cosT;
+                break;
+            }
+
+            return rotatedMatrix;
         }
 
         /**********************************************************
@@ -194,47 +206,47 @@ class MatrixTransform
             }
         }
 
-        void multiplyMatrices(double matrix1[4][4], double matrix2[4][4])
-        {
-            double result[4][4];
-            for (int i = 0; i < 4; ++i)
-            {
-                for (int j = 0; j < 4; ++j)
-                {
-                    float sum = 0;
-                    for (int k = 0; k < 4; ++k)
-                    {
-                        sum += (matrix2[i][j] * matrix1[j][k]);
-                    }
-                    result[i][j] = sum;
-                }
-            }
-
-            for (int i = 0; i < 4; ++i)
-            {
-                for (int j = 0; j < 4; ++j)
-                {
-                    matrix1[i][j] = result[i][j];
-                }
-            }
-        }
-
         double* operator [] (int i)
         {
             return (double*) matrix[i];
         }
 
-        MatrixTransform operator * (double vector[4][1])
-        {
-            // Copy the vector over so this function can be const
-            double operatorVector[4][1];
-            for (int i = 0; i < 4; i++)
-            {
-                operatorVector[i][0] = vector[i][0];
-            }
-            multiplyVector(operatorVector);
+        const double* get(int i) const { 
+            return (double*)matrix[i]; 
+        }
 
-            return MatrixTransform(operatorVector);
+        MatrixTransform operator * (const MatrixTransform & rhs) const
+        {
+            MatrixTransform result = MatrixTransform();
+
+            for (int col = 0; col < 4; col++)
+            {
+                for (int row = 0; row < 4; row++)
+                {
+                    result[row][col] = 0;
+                    for (int k = 0; k < 4; k++)
+                    {
+                        result[row][col] += matrix[row][k] * (rhs.get(k))[col];
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        Vertex operator * (const Vertex & rhs) const
+        {
+            MatrixTransform vector = MatrixTransform(rhs);
+
+            MatrixTransform result = (*this) * vector;
+
+            Vertex outputVertex;
+            outputVertex.x = result[0][0];
+            outputVertex.y = result[1][0];
+            outputVertex.z = result[2][0];
+            outputVertex.w = result[3][0];
+
+            return outputVertex;
         }
 };
 
@@ -269,15 +281,15 @@ class Buffer2D
 
     public:
         // Free dynamic memory
-        ~Buffer2D()
-        {
-            // De-Allocate pointers for column references
-            for(int r = 0; r < h; r++)
-            {
-                free(grid[r]);
-            }
-            free(grid);
-        }
+        // ~Buffer2D()
+        // {
+        //     // De-Allocate pointers for column references
+        //     for(int r = 0; r < h; r++)
+        //     {
+        //         free(grid[r]);
+        //     }
+        //     free(grid);
+        // }
 
         // Size-Specified constructor, no data
         Buffer2D(const int & wid, const int & hgt)
@@ -406,6 +418,18 @@ class BufferImage : public Buffer2D<PIXEL>
         }
 };
 
+/**
+ * Performs Barycentric Interpolation for three weights and three values
+ * 
+ * Taken from teacher's code at:
+ * https://github.com/danebear/CS312_Graphics-1/blob/b8777ac71d04ec861a724e04c2333a6de7e53aa9/definitions.h
+ * */
+inline double baryInterp(const double & firstWeight, const double & secondWeight, const double & thirdWeight,
+                  const double & firstValue, const double & secondValue, const double & thirdValue)
+{
+    return ((firstWeight * thirdValue) + (secondWeight * firstValue) + (thirdWeight * secondValue));
+}
+
 /***************************************************
  * ATTRIBUTES (shadows OpenGL VAO, VBO)
  * The attributes associated with a rendered 
@@ -416,15 +440,31 @@ class Attributes
 {      
     public:
         // Obligatory empty constructor
-        Attributes() {}
+        Attributes()
+        {
+            numValues = 0;
+        }
+
+        // Interpolation Constructor
+        Attributes( const double & firstWeight, const double & secondWeight, const double & thirdWeight, 
+                    const Attributes & first, const Attributes & second, const Attributes & third,
+		    const double & correctZ)
+        {
+            while(this->numValues < first.numValues)
+            {
+	            this->values.push_back(baryInterp(firstWeight, secondWeight, thirdWeight, first.values[this->numValues], second.values[this->numValues], third.values[this->numValues]));
+			    // this->values.push_back(this->values[this->numValues] * correctZ);
+			    this->numValues += 1;
+            }
+        }
 
         // Needed by clipping (linearly interpolated Attributes between two others)
         Attributes(const Attributes & first, const Attributes & second, const double & valueBetween)
         {
-            numValues = first.numValues;
-            for (int i = 0; i < numValues; i++)
+            this->numValues = first.numValues;
+            for (int i = 0; i < this->numValues; i++)
             {
-                values.push_back(first.values[i] + ((second.values[i] - first.values[i]) *  valueBetween));
+                this->values.push_back((first.values[i]) + ((second.values[i] - first.values[i]) * valueBetween));
             }
         }
 
@@ -493,20 +533,8 @@ void DefaultVertShader(Vertex & vertOut, Attributes & attrOut, const Vertex & ve
 
 void TestVertShader(Vertex & vertOut, Attributes & attrOut, const Vertex & vertIn, const Attributes & vertAttr, const Attributes & uniforms)
 {
-    // Create a Vector from the Vertex vertIn
-    Vertex transformedVertex;
-    double vector[4][1] = {{vertIn.x}, {vertIn.y}, {vertIn.z}, {vertIn.w}};
-
     // Multiply the vector by the transformation matrix
-    uniforms.transform.multiplyVector(vector);
-    // MatrixTransform resultTransform = uniforms.transform * vector;
-
-    transformedVertex.x = vector[0][0];
-    transformedVertex.y = vector[1][0];
-    transformedVertex.z = vector[2][0];
-    transformedVertex.w = vector[3][0];
-
-    vertOut = transformedVertex;
+    vertOut = uniforms.transform * vertIn;
 
     // Modify Attributes
     attrOut = vertAttr;

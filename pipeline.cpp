@@ -201,18 +201,30 @@ void DrawTriangle(Buffer2D<PIXEL> &target, Vertex* const triangle, Attributes* c
             double secondDet = computeDeterminant(secondVect.x, x - triangle[1].x, secondVect.y, y - triangle[1].y);
             double thirdDet = computeDeterminant(thirdVect.x, x - triangle[2].x, thirdVect.y, y - triangle[2].y);
 
+            double firstWeight = firstDet / area;
+            double secondWeight = secondDet / area;
+            double thirdWeight = thirdDet / area;
+
             // Test if this point is in the triangle
             if ((firstDet >= 0) && (secondDet >= 0) && (thirdDet >= 0)) {
+                // Find the correct Z
+                double correctZ = baryInterp(firstWeight, secondWeight, thirdWeight, triangle[0].w, triangle[1].w, triangle[2].w);
+		        correctZ = 1.0 / correctZ;
+
                 // Attributes with which we will shade a fragment
-                Attributes interpolatedAttributes;
+                // Attributes interpolatedAttributes(firstWeight, secondWeight, thirdWeight, attrs[0], attrs[1], attrs[2], correctZ);
+                Attributes interpolatedAttributes = Attributes();
 
                 // Iterpolate the passed attributes
-                interpolatedAttributes.values[0] = interpolate(area, firstDet, secondDet, thirdDet, attrs[0].values[0], attrs[1].values[0], attrs[2].values[0]);
-                interpolatedAttributes.values[1] = interpolate(area, firstDet, secondDet, thirdDet, attrs[0].values[1], attrs[1].values[1], attrs[2].values[1]);
-                interpolatedAttributes.values[2] = interpolate(area, firstDet, secondDet, thirdDet, attrs[0].values[2], attrs[1].values[2], attrs[2].values[2]);
+                interpolatedAttributes.numValues = 2;
+                interpolatedAttributes.values.push_back(baryInterp(firstWeight, secondWeight, thirdWeight, attrs[0].values[0], attrs[1].values[0], attrs[2].values[0]));
+                interpolatedAttributes.values.push_back(baryInterp(firstWeight, secondWeight, thirdWeight, attrs[0].values[1], attrs[1].values[1], attrs[2].values[1]));
+                // interpolatedAttributes.values.push_back(interpolate(area, firstDet, secondDet, thirdDet, attrs[0].values[0], attrs[1].values[0], attrs[2].values[0]));
+                // interpolatedAttributes.values.push_back(interpolate(area, firstDet, secondDet, thirdDet, attrs[0].values[1], attrs[1].values[1], attrs[2].values[1]));
+                // interpolatedAttributes.values.push_back(interpolate(area, firstDet, secondDet, thirdDet, attrs[0].values[2], attrs[1].values[2], attrs[2].values[2]));
 
-                interpolatedAttributes.values[0] = interpolate(area, firstDet, secondDet, thirdDet, attrs[0].values[0], attrs[1].values[0], attrs[2].values[0]);
-                interpolatedAttributes.values[1] = interpolate(area, firstDet, secondDet, thirdDet, attrs[0].values[1], attrs[1].values[1], attrs[2].values[1]);
+                // interpolatedAttributes.values.push_back(interpolate(area, firstDet, secondDet, thirdDet, attrs[0].values[0], attrs[1].values[0], attrs[2].values[0]));
+                // interpolatedAttributes.values.push_back(interpolate(area, firstDet, secondDet, thirdDet, attrs[0].values[1], attrs[1].values[1], attrs[2].values[1]));
                 
                 // Shade the fragment using the interpolated attributes and any uniforms
                 frag->FragShader(target[y][x], interpolatedAttributes, *uniforms);
@@ -378,7 +390,7 @@ void clipVertices(Vertex const transformedVerts[], Attributes const transformedA
     // Clipping against x = w (2nd Pass)
     for (int i = 0; i < num; i++)
     {
-        inBounds[i] = srcVerts[i].x < srcVerts[i].w;
+        inBounds[i] = (srcVerts[i].x < srcVerts[i].w);
     }
     for (int i = 0; i < num; i++)
     {
@@ -468,17 +480,17 @@ void clipVertices(Vertex const transformedVerts[], Attributes const transformedA
     }
 
     // Setup Pointers
-    srcVerts = tmpVertB;
-    srcAttrs = tmpAttrB;
-    sinkVerts = tmpVertA;
-    sinkAttrs = tmpAttrA;
+    srcVerts = tmpVertA;
+    srcAttrs = tmpAttrA;
+    sinkVerts = tmpVertB;
+    sinkAttrs = tmpAttrB;
     num = numOut;
     numOut = 0;
 
     // Clipping against y = w (4th Pass)
     for (int i = 0; i < num; i++)
     {
-        inBounds[i] = srcVerts[i].y < srcVerts[i].w;
+        inBounds[i] = (srcVerts[i].y < srcVerts[i].w);
     }
     for (int i = 0; i < num; i++)
     {
@@ -568,17 +580,17 @@ void clipVertices(Vertex const transformedVerts[], Attributes const transformedA
     }
 
     // Setup Pointers
-    srcVerts = tmpVertB;
-    srcAttrs = tmpAttrB;
-    sinkVerts = tmpVertA;
-    sinkAttrs = tmpAttrA;
+    srcVerts = tmpVertA;
+    srcAttrs = tmpAttrA;
+    sinkVerts = tmpVertB;
+    sinkAttrs = tmpAttrB;
     num = numOut;
     numOut = 0;
 
     // Clipping against z = w (6th Pass)
     for (int i = 0; i < num; i++)
     {
-        inBounds[i] = srcVerts[i].z < srcVerts[i].w;
+        inBounds[i] = (srcVerts[i].z < srcVerts[i].w);
     }
     for (int i = 0; i < num; i++)
     {
@@ -667,6 +679,7 @@ void clipVertices(Vertex const transformedVerts[], Attributes const transformedA
         }
     }
 
+    numClipped = numOut;
 }
 
 void normalizeVertices(Vertex clippedVerts[], Attributes clippedAttrs[], int const &numClipped)
@@ -738,21 +751,53 @@ void DrawPrimitive(PRIMITIVES prim,
     // Vertex shader 
     Vertex transformedVerts[MAX_VERTICES];
     Attributes transformedAttrs[MAX_VERTICES];
+    // cout << inputAttrs[0].values[0] << endl; // U
+    // cout << inputAttrs[0].values[1] << endl; // V
+    // cout << inputAttrs[1].values[0] << endl; // U
+    // cout << inputAttrs[1].values[1] << endl; // V
+    // cout << inputAttrs[2].values[0] << endl; // U
+    // cout << inputAttrs[2].values[1] << endl << endl; // V
+    // cout << "Size: " << inputAttrs[0].values.size() << endl << endl;
     VertexShaderExecuteVertices(vert, inputVerts, inputAttrs, numIn, uniforms, transformedVerts, transformedAttrs);
 
     // Clipping
     Vertex clippedVerts[MAX_VERTICES];
     Attributes clippedAttrs[MAX_VERTICES];
     int numClipped;
+    // cout << inputAttrs[0].values[0] << endl; // U
+    // cout << inputAttrs[0].values[1] << endl; // V
+    // cout << inputAttrs[1].values[0] << endl; // U
+    // cout << inputAttrs[1].values[1] << endl; // V
+    // cout << inputAttrs[2].values[0] << endl; // U
+    // cout << inputAttrs[2].values[1] << endl << endl; // V
     clipVertices(transformedVerts, transformedAttrs, numIn, clippedVerts, clippedAttrs, numClipped);
 
     // Normalization
     // This is where we come from Homogenous Coordinates to screen cordinates
+    // cout << inputAttrs[0].values[0] << endl; // U
+    // cout << inputAttrs[0].values[1] << endl; // V
+    // cout << inputAttrs[1].values[0] << endl; // U
+    // cout << inputAttrs[1].values[1] << endl; // V
+    // cout << inputAttrs[2].values[0] << endl; // U
+    // cout << inputAttrs[2].values[1] << endl << endl; // V
     normalizeVertices(clippedVerts, clippedAttrs, numClipped);
 
     // Viewport Transform
     // Transform our coordinates into a system that works in the viewport
+    // cout << inputAttrs[0].values[0] << endl; // U
+    // cout << inputAttrs[0].values[1] << endl; // V
+    // cout << inputAttrs[1].values[0] << endl; // U
+    // cout << inputAttrs[1].values[1] << endl; // V
+    // cout << inputAttrs[2].values[0] << endl; // U
+    // cout << inputAttrs[2].values[1] << endl << endl; // V
     viewportTransform(target, clippedVerts, numClipped);
+
+    // cout << inputAttrs[0].values[0] << endl; // U
+    // cout << inputAttrs[0].values[1] << endl; // V
+    // cout << inputAttrs[1].values[0] << endl; // U
+    // cout << inputAttrs[1].values[1] << endl; // V
+    // cout << inputAttrs[2].values[0] << endl; // U
+    // cout << inputAttrs[2].values[1] << endl << endl; // V
 
     // Vertex Interpolation & Fragment Drawing
     switch(prim)
