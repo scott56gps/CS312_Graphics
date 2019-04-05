@@ -13,7 +13,7 @@ varying vec3 v_Normal;
 varying vec3 v_Position;
 
 // Cel Shader
-const float levels = 5.0;
+const float levels = 2.0;
 const float scaleFactor = 1.0 / levels;
 const vec3 diffuseColor = vec3(0.30,0.80,0.10);
 
@@ -41,11 +41,11 @@ void main()
     // Cel Specular
     float specularFloat = 0.0;
     if (dot(lightDirection, v_Normal) > 0.0) {
-        specularFloat = pow(max(dot(viewDirection, reflectDirection), 0.0), 32.0);
+        specularFloat = pow(max(dot(viewDirection, norm), 0.0), 32.0);
     }
     // limit specular
-    float specMask = (pow(dot(H, reflectDirection), 32.0) > 0.01) ? 1.0 : 0.0;
-    float edgeDetection = (dot(V, reflectDirection) > 0.01) ? 1.0 : 0.0;
+    float specMask = (pow(dot(H, norm), 32.0) > 0.2) ? 1.0 : 0.0;
+    float edgeDetection = (dot(V, norm) > 0.4) ? 1.0 : 0.0;
 
     float spec = pow(max(dot(viewDirection, reflectDirection), 0.0), 32.0);
     // vec3 specular = u_SpecularStrength * spec * lightColor;
